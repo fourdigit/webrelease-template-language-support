@@ -68,7 +68,7 @@ const TAG_ATTRIBUTES: Record<string, string[]> = {
 const NO_CLOSE_TAGS = new Set([
   'wr-then', 'wr-else', 'wr-case', 'wr-default',
   'wr-variable', 'wr-append', 'wr-clear', 'wr-break',
-  'wr-return', 'wr-error', 'wr-cond'
+  'wr-return', 'wr-error'
 ]);
 
 // HTML の void 要素（self-closing として扱う）
@@ -383,6 +383,9 @@ export class TemplateParser {
 
     // wr-switch の直下ネスト制限
     this.validateWrSwitchChildren();
+
+    // wr-conditional の直下ネスト制限
+    this.validateWrConditionalChildren();
 
     return this.diagnostics;
   }
@@ -790,6 +793,42 @@ export class TemplateParser {
   }
 
   /**
+   * wr-conditional 直下の子ノードの制約を検証する。
+   * 許可: 空白/改行のみのテキスト, wr-cond, wr-comment, wr--。
+   */
+  private validateWrConditionalChildren(): void {
+    const blocks = this.extractBlocks('wr-conditional');
+
+    for (const block of blocks) {
+      const topNodes = this.collectTopLevelNodes(block.contentStart, block.contentEnd);
+
+      for (const node of topNodes) {
+        if (node.type === 'text') {
+          if (node.text.trim().length === 0) {
+            continue;
+          }
+          this.reportWrConditionalError(
+            node.start,
+            node.end,
+            'wr-conditional直下に wr-cond 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+          );
+          continue;
+        }
+
+        if (node.name === 'wr-cond' || node.name === 'wr-comment' || node.name === 'wr--') {
+          continue;
+        }
+
+        this.reportWrConditionalError(
+          node.start,
+          node.end,
+          'wr-conditional直下に wr-cond 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+        );
+      }
+    }
+  }
+
+  /**
    * 指定タグの開始/終了を対応付け、内容範囲を返す。
    */
   private extractBlocks(tagName: string): Array<{ contentStart: number; contentEnd: number }> {
@@ -862,23 +901,29 @@ export class TemplateParser {
       const fullTag = match[0];
       const tagName = match[1].toLowerCase();
       const isClosing = /^<\s*\//.test(fullTag);
-      const isWrThenElse = tagName === 'wr-then' || tagName === 'wr-else';
-      const isWrCaseDefault = tagName === 'wr-case' || tagName === 'wr-default';
-      const selfClosing =
-        !isClosing &&
-        !isWrThenElse &&
-        !isWrCaseDefault &&
-        (fullTag.endsWith('/>') || NO_CLOSE_TAGS.has(tagName) || this.isVoidHtmlTag(tagName));
+
+      // Tags that act as containers (increment/decrement depth)
+      // Includes: wr-then, wr-else, wr-case, wr-default, wr-cond, and normal HTML block elements
+      // Excludes: NO_CLOSE_TAGS (self-contained), void HTML elements, explicitly self-closing tags
+      const isContainer =
+        tagName === 'wr-then' ||
+        tagName === 'wr-else' ||
+        tagName === 'wr-case' ||
+        tagName === 'wr-default' ||
+        tagName === 'wr-cond' ||
+        (!NO_CLOSE_TAGS.has(tagName) && !this.isVoidHtmlTag(tagName) && !fullTag.endsWith('/>'));
 
       if (!isClosing) {
         if (depth === 0) {
           nodes.push({ type: 'tag', name: tagName, start: tagStart, end: tagEnd });
         }
-        if (!selfClosing) {
+        if (isContainer) {
           depth++;
         }
       } else {
-        if (!selfClosing) {
+        // Only decrement depth for tags that would have incremented it
+        // (i.e., containers, not NO_CLOSE_TAGS or void elements)
+        if (isContainer) {
           depth = Math.max(0, depth - 1);
         }
       }
@@ -927,6 +972,20 @@ export class TemplateParser {
       severity: 1,
       message,
       code: 'wr-switch-nesting-error'
+    });
+  }
+
+  private reportWrConditionalError(start: number, end: number, message: string): void {
+    const { line: startLine, character: startChar } = this.getLineColumn(start);
+    const { line: endLine, character: endChar } = this.getLineColumn(end);
+    this.diagnostics.push({
+      range: {
+        start: { line: startLine, character: startChar },
+        end: { line: endLine, character: endChar }
+      },
+      severity: 1,
+      message,
+      code: 'wr-conditional-nesting-error'
     });
   }
 

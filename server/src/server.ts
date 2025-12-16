@@ -111,7 +111,7 @@ const webreleaseHtmlDataProvider = newHTMLDataProvider('webrelease2', {
     {
       name: 'wr-conditional',
       description: 'WebRelease2: conditional block',
-      attributes: [{ name: 'condition', description: 'Expression to evaluate' }]
+      attributes: []
     },
     {
       name: 'wr-cond',
@@ -214,7 +214,7 @@ const TAG_DOCUMENTATION: Record<string, string> = {
   'wr-break': '**wr-break** - ループを抜ける\n\n属性:\n- `condition`: （任意）break する条件',
   'wr-return': '**wr-return** - 値を返す\n\n属性:\n- `value`: 返す値',
   'wr-error': '**wr-error** - エラーを発生させる\n\n属性:\n- `condition`: エラーにする条件\n- `message`: エラーメッセージ',
-  'wr-conditional': '**wr-conditional** - 条件ブロック\n\n属性:\n- `condition`: 評価する式',
+  'wr-conditional': '**wr-conditional** - 条件ブロック',
   'wr-cond': '**wr-cond** - wr-conditional 内の条件\n\n属性:\n- `condition`: 評価する式',
   'wr-comment': '**wr-comment** - コメントブロック（出力には含まれません）',
   'wr--': '**wr--** - コメントブロック（wr-comment の別名。出力には含まれません）'

@@ -17,18 +17,28 @@
         <wr-else>
             <p>メールアドレスは登録されていません</p>
         </wr-else>
-        <wr-if cont="isNotNull(email)">
-            <wr-then>
-                <p class="email" aria-label="メールアドレス">メールアドレス: <a href="mailto:%email%">%email%</a></p>
-            </wr-then>
-            <wr-else>
-                <p>メールアドレスは登録されていません</p>
-            </wr-else>
-        </wr-if>
         <wr-for list="items" variable="item">
             <p>%items.name%</p>
         </wr-for>
+    </wr-if>
+    <wr-if condition="isNotNull(email)">
+        <wr-comment>
+            test
+        </wr-comment>
+        <wr-->
+            test
+        </wr-->
+        <wr-then>
+            <p>メールアドレス: <a href="mailto:%email%">%email%</a></p>
+        </wr-then>
+        
+        <wr-else>
+            <p>メールアドレスは登録されていません</p>
+        </wr-else>
 
+    </wr-if>
+    <wr-if condition="isNotNull(email)">
+        aaa <br/>
     </wr-if>
     <wr-for list='card.selectPriceInfo' variable="info">
     <wr-conditional>
@@ -46,8 +56,90 @@
             </div>
         </wr-cond>
     </wr-conditional>
-	
-    
+    <wr-switch value="info.selectedName()">
+        <wr-case value="grpPriceInfo">
+            <div class="m-service-category-card__price">
+                %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                %generateBenefit(priceInfo.grpBenefit)%
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-case>
+        <wr-default>
+            test2<br/>
+        </wr-default>
+    </wr-switch>
+    <wr-switch value="info.selectedName()">
+        aaa
+        <wr-case value="grpPriceInfo">
+            <div class="m-service-category-card__price">
+                %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                %generateBenefit(priceInfo.grpBenefit)%
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-case>
+    </wr-switch>
+    <wr-switch value="info.selectedName()">
+        <wr-comment>
+            test
+        </wr-comment>
+        <wr-default>
+            <div class="m-service-category-card__price">
+                %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                %generateBenefit(priceInfo.grpBenefit)%
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+            <wr-switch value="info.selectedName()">
+                <wr-case value="grpPriceInfo">
+                    <div class="m-service-category-card__price">
+                        %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                        %generateBenefit(priceInfo.grpBenefit)%
+                        %generateBakuage(priceInfo.grpBakuage)%
+                    </div>
+                </wr-case>
+                <wr-default>
+                    <div class="m-service-category-card__price">
+                        %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                        %generateBenefit(priceInfo.grpBenefit)%
+                        %generateBakuage(priceInfo.grpBakuage)%
+                    </div>
+                </wr-default>
+            </wr-switch>
+        </wr-default> 
+        <wr-case value="grpPriceInfo">
+            <div class="m-service-category-card__price">
+                %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                %generateBenefit(priceInfo.grpBenefit)%
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-case>
+        <wr-default>
+            <div class="m-service-category-card__price">
+                %priceInfo.radioPaymentType%：%generatePrice(priceInfo.grpPrice)%
+                %generateBenefit(priceInfo.grpBenefit)%
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-default>
+    </wr-switch>
+    <wr-conditional condition="info.selectedName() == 'grpPriceInfo'">
+    aaa
+        <wr-cond condition='info.selectedName() == "grpPriceInfo"'>
+            <wr-variable name='priceInfo' value='info.selectedValue()'></wr-variable>
+            <div class="m-service-category-card__price">
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-cond>
+    </wr-conditional>
+    <wr-conditional>
+        <wr-comment>
+            test
+        </wr-comment>
+        <wr-cond condition='info.selectedName() == "grpPriceInfo"'>
+            <wr-variable name='priceInfo' value='info.selectedValue()'></wr-variable>
+            <div class="m-service-category-card__price">
+                %generateBakuage(priceInfo.grpBakuage)%
+            </div>
+        </wr-cond>
+    </wr-conditional>
     <!-- ループの例 -->
     <h2>記事一覧</h2>
     <table border="1">

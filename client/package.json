@@ -2,12 +2,12 @@
   "name": "webrelease-template-lsp",
   "displayName": "WebRelease Template Language Support",
   "description": "Language support for WebRelease template language with syntax highlighting, validation, and code completion",
-  "version": "0.1.0",
-  "publisher": "webrelease",
+  "version": "0.2.0",
+  "publisher": "fourdigit",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/webrelease/webrelease-template-lsp"
+    "url": "https://github.com/fourdigit/webrelease-template-language-support"
   },
   "engines": {
     "vscode": "^1.75.0"
@@ -52,11 +52,6 @@
       "type": "object",
       "title": "WebRelease Template LSP",
       "properties": {
-        "webrelease.lsp.pythonPath": {
-          "type": "string",
-          "default": "python3",
-          "description": "Path to Python interpreter"
-        },
         "webrelease.lsp.trace.server": {
           "type": "string",
           "enum": ["off", "messages", "verbose"],
@@ -80,10 +75,11 @@
     "@types/vscode": "^1.75.0",
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
+    "@vscode/vsce": "^2.22.0",
     "eslint": "^8.0.0",
     "typescript": "^4.8.0"
   },
   "dependencies": {
-    "vscode-languageclient": "^8.1.0"
+    "vscode-languageclient": "^9.0.1"
   }
 }

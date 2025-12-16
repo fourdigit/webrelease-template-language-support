@@ -1,5 +1,4 @@
 import * as path from 'path';
-import * as fs from 'fs';
 import { workspace, ExtensionContext, window, OutputChannel } from 'vscode';
 import {
     LanguageClient,
@@ -14,47 +13,39 @@ let outputChannel: OutputChannel;
 export function activate(context: ExtensionContext) {
     outputChannel = window.createOutputChannel('WebRelease Template LSP');
     
-    // Get the Python interpreter path
-    const pythonPath = getPythonPath();
-    
-    // Get the server script path
-    const serverScriptPath = path.join(
-        context.extensionPath,
-        'server',
-        '__main__.py'
+    // Get the server module path (Node.js based)
+    const serverModule = context.asAbsolutePath(
+        path.join('server', 'out', 'server.js')
     );
     
-    // Check if server script exists
-    if (!fs.existsSync(serverScriptPath)) {
-        window.showErrorMessage(
-            `WebRelease Template LSP server not found at ${serverScriptPath}`
-        );
-        return;
-    }
+    outputChannel.appendLine(`Server module: ${serverModule}`);
     
-    outputChannel.appendLine(`Python path: ${pythonPath}`);
-    outputChannel.appendLine(`Server script: ${serverScriptPath}`);
-    
-    // Server options
+    // Server options - using Node.js IPC transport
     const serverOptions: ServerOptions = {
-        command: pythonPath,
-        args: ['-m', 'server'],
-        options: {
-            cwd: path.join(context.extensionPath, 'server'),
-            env: {
-                ...process.env,
-                PYTHONUNBUFFERED: '1',
-            },
+        run: {
+            module: serverModule,
+            transport: TransportKind.ipc
         },
+        debug: {
+            module: serverModule,
+            transport: TransportKind.ipc,
+            options: {
+                execArgv: ['--nolazy', '--inspect=6009']
+            }
+        }
     };
     
     // Client options
     const clientOptions: LanguageClientOptions = {
+        // Register the server for WebRelease template documents
         documentSelector: [
             { scheme: 'file', language: 'webrelease' },
+            { scheme: 'file', pattern: '**/*.wr' },
+            { scheme: 'file', pattern: '**/*.wrt' }
         ],
         synchronize: {
-            fileEvents: workspace.createFileSystemWatcher('**/.clientrc'),
+            // Notify the server about file changes
+            fileEvents: workspace.createFileSystemWatcher('**/*.{wr,wrt}')
         },
         outputChannel: outputChannel,
     };
@@ -67,13 +58,12 @@ export function activate(context: ExtensionContext) {
         clientOptions
     );
     
-    // Start the client
+    // Start the client (this will also launch the server)
     client.start();
     
     outputChannel.appendLine('WebRelease Template LSP started');
     
-    // Push the disposable to the context's subscriptions so that the
-    // client can be deactivated on extension deactivation
+    // Push the disposable to the context's subscriptions
     context.subscriptions.push(client);
 }
 
@@ -82,32 +72,4 @@ export function deactivate(): Thenable<void> | undefined {
         return undefined;
     }
     return client.stop();
-}
-
-function getPythonPath(): string {
-    // Try to get Python path from workspace settings
-    const config = workspace.getConfiguration('python');
-    const pythonPath = config.get<string>('defaultInterpreterPath');
-    
-    if (pythonPath) {
-        return pythonPath;
-    }
-    
-    // Try common Python executables
-    const pythonExecutables = ['python3', 'python', 'python.exe'];
-    
-    for (const executable of pythonExecutables) {
-        try {
-            // Check if executable exists
-            require('child_process').execSync(`which ${executable}`, {
-                stdio: 'pipe',
-            });
-            return executable;
-        } catch {
-            // Try next executable
-        }
-    }
-    
-    // Default to python3
-    return 'python3';
 }

@@ -381,6 +381,9 @@ export class TemplateParser {
     // wr-if の直下ネスト制限
     this.validateWrIfChildren();
 
+    // wr-switch の直下ネスト制限
+    this.validateWrSwitchChildren();
+
     return this.diagnostics;
   }
 
@@ -632,7 +635,7 @@ export class TemplateParser {
    * 許可: 空白/改行のみのテキスト, wr-comment, wr--, wr-then, wr-else。
    */
   private validateWrIfChildren(): void {
-    const blocks = this.extractWrIfBlocks();
+    const blocks = this.extractBlocks('wr-if');
 
     for (const block of blocks) {
       const topNodes = this.collectTopLevelNodes(block.contentStart, block.contentEnd);
@@ -707,10 +710,90 @@ export class TemplateParser {
   }
 
   /**
-   * wr-if 開始/終了タグを対応付け、内容範囲を返す。
+   * wr-switch 直下の子ノードの制約を検証する。
+   * 許可: 空白/改行のみのテキスト, wr-comment, wr--, wr-case, wr-default。
+   * wr-default は 1つまで、かつ最後（以降に子ノードを置かない）。
    */
-  private extractWrIfBlocks(): Array<{ contentStart: number; contentEnd: number }> {
-    const regex = /<\s*(\/?)\s*wr-if\b[^>]*?>/g;
+  private validateWrSwitchChildren(): void {
+    const blocks = this.extractBlocks('wr-switch');
+
+    for (const block of blocks) {
+      const topNodes = this.collectTopLevelNodes(block.contentStart, block.contentEnd);
+
+      let defaultCount = 0;
+      let seenDefault = false;
+
+      for (const node of topNodes) {
+        if (node.type === 'text') {
+          if (node.text.trim().length === 0) {
+            continue;
+          }
+
+          if (seenDefault) {
+            this.reportWrSwitchError(
+              node.start,
+              node.end,
+              'wr-default は wr-switch 直下の最後にのみ配置できます'
+            );
+          } else {
+            this.reportWrSwitchError(
+              node.start,
+              node.end,
+              'wr-switch直下に wr-case/wr-default 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-comment' || node.name === 'wr--') {
+          if (seenDefault) {
+            this.reportWrSwitchError(
+              node.start,
+              node.end,
+              'wr-default は wr-switch 直下の最後にのみ配置できます'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-case') {
+          if (seenDefault) {
+            this.reportWrSwitchError(
+              node.start,
+              node.end,
+              'wr-default は wr-switch 直下の最後にのみ配置できます'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-default') {
+          defaultCount++;
+          if (defaultCount > 1) {
+            this.reportWrSwitchError(
+              node.start,
+              node.end,
+              'wr-switch 直下の wr-default は1つだけ指定できます'
+            );
+          }
+          seenDefault = true;
+          continue;
+        }
+
+        this.reportWrSwitchError(
+          node.start,
+          node.end,
+          'wr-switch直下に wr-case/wr-default 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+        );
+      }
+    }
+  }
+
+  /**
+   * 指定タグの開始/終了を対応付け、内容範囲を返す。
+   */
+  private extractBlocks(tagName: string): Array<{ contentStart: number; contentEnd: number }> {
+    const regex = new RegExp(`<\\s*(/?)\\s*${tagName}\\b[^>]*?>`, 'g');
     const stack: Array<{ contentStart: number }> = [];
     const blocks: Array<{ contentStart: number; contentEnd: number }> = [];
     let match: RegExpExecArray | null;
@@ -780,9 +863,11 @@ export class TemplateParser {
       const tagName = match[1].toLowerCase();
       const isClosing = /^<\s*\//.test(fullTag);
       const isWrThenElse = tagName === 'wr-then' || tagName === 'wr-else';
+      const isWrCaseDefault = tagName === 'wr-case' || tagName === 'wr-default';
       const selfClosing =
         !isClosing &&
         !isWrThenElse &&
+        !isWrCaseDefault &&
         (fullTag.endsWith('/>') || NO_CLOSE_TAGS.has(tagName) || this.isVoidHtmlTag(tagName));
 
       if (!isClosing) {
@@ -828,6 +913,20 @@ export class TemplateParser {
       severity: 1,
       message,
       code: 'wr-if-nesting-error'
+    });
+  }
+
+  private reportWrSwitchError(start: number, end: number, message: string): void {
+    const { line: startLine, character: startChar } = this.getLineColumn(start);
+    const { line: endLine, character: endChar } = this.getLineColumn(end);
+    this.diagnostics.push({
+      range: {
+        start: { line: startLine, character: startChar },
+        end: { line: endLine, character: endChar }
+      },
+      severity: 1,
+      message,
+      code: 'wr-switch-nesting-error'
     });
   }
 

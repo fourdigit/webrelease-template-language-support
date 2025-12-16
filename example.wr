@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <title>%pageTitle()%</title>
+</head>
+<body>
+    <h1>%pageTitle()%</h1>
+    
+    <!-- 条件分岐の例 -->
+    <wr-if condition="isNotNull(email)">
+        <wr-then>
+            <p>メールアドレス: <a href="mailto:%email%">%email%</a></p>
+        </wr-then>
+        <wr-else>
+            <p>メールアドレスは登録されていません</p>
+        </wr-else>
+    </wr-if>
+    
+    <!-- ループの例 -->
+    <h2>記事一覧</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>日付</th>
+                <th>タイトル</th>
+            </tr>
+        </thead>
+        <tbody>
+            <wr-for list="articles" variable="article" count="i">
+                <tr>
+                    <td>%i%</td>
+                    <td>%article.date%</td>
+                    <td>%article.title%</td>
+                </tr>
+            </wr-for>
+        </tbody>
+    </table>
+    
+    <!-- 変数の使用例 -->
+    <wr-variable name="total" value="0" />
+    <wr-for list="items" variable="item">
+        <wr-variable name="total" value="total + item.price" />
+    </wr-for>
+    <p>合計: %total%</p>
+    
+    <!-- 複雑な条件の例 -->
+    <wr-if condition="isNumber(price) && (price * 1.1 > 1000)">
+        <p>税込価格が1000円を超えています</p>
+    </wr-if>
+    
+    <!-- コメント -->
+    <wr-comment>
+        このセクションはコメントです。
+        展開結果には含まれません。
+    </wr-comment>
+    
+    <footer>
+        <p>最終更新: %formatDate(currentTime(), "yyyy/MM/dd HH:mm")%</p>
+    </footer>
+</body>
+</html>

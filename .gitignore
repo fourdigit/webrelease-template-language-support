@@ -19,6 +19,9 @@ yarn-error.log*
 *.vsix
 out/
 .vscode-test/
+**/tsconfig.tsbuildinfo
+client/out/
+server/out/
 
 # IDE
 .idea/

@@ -23,32 +23,21 @@ jobs:
           node-version: 20
           cache: npm
           cache-dependency-path: |
+            package-lock.json
             client/package-lock.json
-            client/server/package-lock.json
+            server/package-lock.json
 
-      - name: Install deps (client/server)
-        working-directory: client/server
+      - name: Install deps
         run: npm ci
 
-      - name: Build server (client/server)
-        working-directory: client/server
+      - name: Build (client + server)
         run: npm run compile
 
-      - name: Install deps (client)
-        working-directory: client
-        run: npm ci
-
-      - name: Build extension (client)
-        working-directory: client
-        run: npm run compile
-
-      - name: Package VSIX (client)
-        working-directory: client
+      - name: Package VSIX
         run: npm run package
 
       - name: Read extension version
         id: version
-        working-directory: client
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -57,7 +46,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vsix
-          path: client/*.vsix
+          path: "*.vsix"
           if-no-files-found: error
 
       - name: Create GitHub Release and upload VSIX
@@ -66,7 +55,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
-          files: client/*.vsix
+          files: "*.vsix"
           fail_on_unmatched_files: true
 
 

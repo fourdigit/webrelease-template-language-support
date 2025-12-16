@@ -1,0 +1,15 @@
+.vscode/**
+.vscode-test/**
+.github/**
+
+client/src/**
+server/src/**
+
+**/.eslintrc.json
+**/tsconfig.json
+**/tsconfig.tsbuildinfo
+**/*.map
+**/*.ts
+
+client/server/**
+

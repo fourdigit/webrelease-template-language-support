@@ -1,0 +1,99 @@
+{
+  "name": "webrelease-template-lsp",
+  "displayName": "WebRelease Template Language Support",
+  "description": "Language support for WebRelease template language with syntax highlighting, validation, and code completion",
+  "version": "0.6.0",
+  "publisher": "fourdigit",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fourdigit/webrelease-template-language-support"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters"
+  ],
+  "keywords": [
+    "webrelease",
+    "template",
+    "language",
+    "lsp",
+    "html"
+  ],
+  "activationEvents": [
+    "onLanguage:webrelease"
+  ],
+  "main": "./client/out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "webrelease",
+        "aliases": [
+          "WebRelease Template",
+          "webrelease"
+        ],
+        "extensions": [
+          ".wr",
+          ".wrt"
+        ],
+        "configuration": "./client/language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "webrelease",
+        "scopeName": "text.html.webrelease",
+        "path": "./client/syntaxes/webrelease.tmLanguage.json",
+        "embeddedLanguages": {
+          "source.css": "css",
+          "source.js": "javascript",
+          "source.json": "json"
+        }
+      },
+      {
+        "scopeName": "text.html.webrelease.injection",
+        "path": "./client/syntaxes/webrelease-injection.tmLanguage.json",
+        "injectTo": [
+          "text.html",
+          "source.json"
+        ]
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "WebRelease Template LSP",
+      "properties": {
+        "webrelease.lsp.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -b",
+    "watch": "tsc -b -w",
+    "package": "vsce package",
+    "postinstall": "cd client && npm install && cd ../server && npm install && cd .."
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.0.0",
+    "@typescript-eslint/parser": "^5.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
+

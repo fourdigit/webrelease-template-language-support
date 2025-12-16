@@ -24,6 +24,12 @@
           "begin": "<wr-comment>",
           "end": "</wr-comment>",
           "contentName": "comment.block.webrelease2"
+        },
+        {
+          "name": "comment.block.webrelease2",
+          "begin": "<wr-->",
+          "end": "</wr-->",
+          "contentName": "comment.block.webrelease2"
         }
       ]
     },
@@ -219,5 +225,8 @@
     }
   }
 }
+
+
+
 
 

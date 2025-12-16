@@ -71,6 +71,12 @@ const NO_CLOSE_TAGS = new Set([
   'wr-return', 'wr-error', 'wr-cond'
 ]);
 
+// HTML の void 要素（self-closing として扱う）
+const VOID_HTML_TAGS = new Set([
+  'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+  'link', 'meta', 'param', 'source', 'track', 'wbr'
+]);
+
 /**
  * WebRelease2 テンプレート式のパーサー
  */
@@ -372,6 +378,9 @@ export class TemplateParser {
     // 閉じタグの検証
     this.validateTagClosures();
 
+    // wr-if の直下ネスト制限
+    this.validateWrIfChildren();
+
     return this.diagnostics;
   }
 
@@ -616,6 +625,210 @@ export class TemplateParser {
         code: 'unclosed-tag'
       });
     }
+  }
+
+  /**
+   * wr-if 直下に wr-then / wr-else を用いる場合のネスト制限を検証する。
+   * 許可: 空白/改行のみのテキスト, wr-comment, wr--, wr-then, wr-else。
+   */
+  private validateWrIfChildren(): void {
+    const blocks = this.extractWrIfBlocks();
+
+    for (const block of blocks) {
+      const topNodes = this.collectTopLevelNodes(block.contentStart, block.contentEnd);
+      const usesThenOrElse = topNodes.some(
+        node => node.type === 'tag' && (node.name === 'wr-then' || node.name === 'wr-else')
+      );
+
+      // then/else を使わないパターンは従来通り制限なし
+      if (!usesThenOrElse) {
+        continue;
+      }
+
+      let thenCount = 0;
+      let elseCount = 0;
+      let seenThen = false;
+
+      for (const node of topNodes) {
+        if (node.type === 'text') {
+          if (node.text.trim().length > 0) {
+            this.reportWrIfNestingError(
+              node.start,
+              node.end,
+              'wr-if直下に wr-then/wr-else 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-then') {
+          thenCount++;
+          seenThen = true;
+          if (thenCount > 1) {
+            this.reportWrIfNestingError(
+              node.start,
+              node.end,
+              'wr-if 直下の wr-then は1つだけ指定できます'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-else') {
+          elseCount++;
+          if (!seenThen) {
+            this.reportWrIfNestingError(
+              node.start,
+              node.end,
+              'wr-else は wr-then の後にのみ配置できます'
+            );
+          }
+          if (elseCount > 1) {
+            this.reportWrIfNestingError(
+              node.start,
+              node.end,
+              'wr-if 直下の wr-else は1つだけ指定できます'
+            );
+          }
+          continue;
+        }
+
+        if (node.name === 'wr-comment' || node.name === 'wr--') {
+          continue;
+        }
+
+        this.reportWrIfNestingError(
+          node.start,
+          node.end,
+          'wr-if直下に wr-then/wr-else 以外の要素または非空白テキストを置けません（wr-comment/wr-- は可）'
+        );
+      }
+    }
+  }
+
+  /**
+   * wr-if 開始/終了タグを対応付け、内容範囲を返す。
+   */
+  private extractWrIfBlocks(): Array<{ contentStart: number; contentEnd: number }> {
+    const regex = /<\s*(\/?)\s*wr-if\b[^>]*?>/g;
+    const stack: Array<{ contentStart: number }> = [];
+    const blocks: Array<{ contentStart: number; contentEnd: number }> = [];
+    let match: RegExpExecArray | null;
+
+    while ((match = regex.exec(this.content)) !== null) {
+      const isClosing = match[1] === '/';
+      const fullTag = match[0];
+      const tagEnd = regex.lastIndex;
+
+      if (isClosing) {
+        if (stack.length > 0) {
+          const open = stack.pop()!;
+          blocks.push({ contentStart: open.contentStart, contentEnd: match.index });
+        }
+      } else {
+        const selfClosing = /\/\s*>$/.test(fullTag);
+        if (!selfClosing) {
+          stack.push({ contentStart: tagEnd });
+        }
+      }
+    }
+
+    return blocks;
+  }
+
+  /**
+   * wr-if ブロック内の直下ノードを抽出する。
+   */
+  private collectTopLevelNodes(
+    start: number,
+    end: number
+  ): Array<
+    | { type: 'text'; start: number; end: number; text: string }
+    | { type: 'tag'; name: string; start: number; end: number }
+  > {
+    const nodes: Array<
+      | { type: 'text'; start: number; end: number; text: string }
+      | { type: 'tag'; name: string; start: number; end: number }
+    > = [];
+
+    // \b だと末尾が '-' のタグ（wr--）で境界にならないため、次が空白 or /> で区切る
+    const tagRegex = /<\s*\/?\s*([a-zA-Z0-9-]+)(?=[\s/>])[^>]*?>/g;
+    tagRegex.lastIndex = start;
+
+    let depth = 0;
+    let cursor = start;
+    let match: RegExpExecArray | null;
+
+    while ((match = tagRegex.exec(this.content)) !== null) {
+      const tagStart = match.index;
+      if (tagStart >= end) {
+        break;
+      }
+      const tagEnd = tagRegex.lastIndex;
+
+      // 直前のテキスト
+      if (cursor < tagStart && depth === 0) {
+        nodes.push({
+          type: 'text',
+          start: cursor,
+          end: tagStart,
+          text: this.content.slice(cursor, tagStart)
+        });
+      }
+
+      const fullTag = match[0];
+      const tagName = match[1].toLowerCase();
+      const isClosing = /^<\s*\//.test(fullTag);
+      const isWrThenElse = tagName === 'wr-then' || tagName === 'wr-else';
+      const selfClosing =
+        !isClosing &&
+        !isWrThenElse &&
+        (fullTag.endsWith('/>') || NO_CLOSE_TAGS.has(tagName) || this.isVoidHtmlTag(tagName));
+
+      if (!isClosing) {
+        if (depth === 0) {
+          nodes.push({ type: 'tag', name: tagName, start: tagStart, end: tagEnd });
+        }
+        if (!selfClosing) {
+          depth++;
+        }
+      } else {
+        if (!selfClosing) {
+          depth = Math.max(0, depth - 1);
+        }
+      }
+
+      cursor = tagEnd;
+    }
+
+    if (cursor < end && depth === 0) {
+      nodes.push({
+        type: 'text',
+        start: cursor,
+        end,
+        text: this.content.slice(cursor, end)
+      });
+    }
+
+    return nodes;
+  }
+
+  private isVoidHtmlTag(tagName: string): boolean {
+    return VOID_HTML_TAGS.has(tagName);
+  }
+
+  private reportWrIfNestingError(start: number, end: number, message: string): void {
+    const { line: startLine, character: startChar } = this.getLineColumn(start);
+    const { line: endLine, character: endChar } = this.getLineColumn(end);
+    this.diagnostics.push({
+      range: {
+        start: { line: startLine, character: startChar },
+        end: { line: endLine, character: endChar }
+      },
+      severity: 1,
+      message,
+      code: 'wr-if-nesting-error'
+    });
   }
 
   private getLineColumn(pos: number): { line: number; character: number } {

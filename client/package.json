@@ -2,7 +2,7 @@
   "name": "webrelease-template-lsp",
   "displayName": "WebRelease Template Language Support",
   "description": "Language support for WebRelease template language with syntax highlighting, validation, and code completion",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "fourdigit",
   "license": "MIT",
   "repository": {
@@ -22,9 +22,6 @@
     "language",
     "lsp",
     "html"
-  ],
-  "activationEvents": [
-    "onLanguage:webrelease"
   ],
   "main": "./out/extension.js",
   "contributes": {

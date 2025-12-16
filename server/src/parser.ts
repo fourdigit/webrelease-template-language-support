@@ -40,7 +40,7 @@ const BUILT_IN_FUNCTIONS = new Set([
 const VALID_TAGS = new Set([
   'wr-if', 'wr-then', 'wr-else', 'wr-switch', 'wr-case', 'wr-default',
   'wr-for', 'wr-break', 'wr-variable', 'wr-append', 'wr-clear',
-  'wr-return', 'wr-error', 'wr-conditional', 'wr-cond', 'wr-comment'
+  'wr-return', 'wr-error', 'wr-conditional', 'wr-cond', 'wr-comment', 'wr--'
 ]);
 
 // タグの属性
@@ -61,6 +61,7 @@ const TAG_ATTRIBUTES: Record<string, string[]> = {
   'wr-conditional': ['condition'],
   'wr-cond': ['condition'],
   'wr-comment': [],
+  'wr--': [],
 };
 
 // 閉じタグ（</wr-...>）が不要なタグ
@@ -455,11 +456,11 @@ export class TemplateParser {
   }
 
   private validateTags(): void {
-    const pattern = /<wr-(\w+)([^>]*)>/g;
+    const pattern = /<(wr-[a-zA-Z0-9-]+)([^>]*)>/g;
     let match;
 
     while ((match = pattern.exec(this.content)) !== null) {
-      const tagName = 'wr-' + match[1];
+      const tagName = match[1];
       const attributesStr = match[2];
       const startPos = match.index;
 
@@ -546,19 +547,19 @@ export class TemplateParser {
   }
 
   private validateTagClosures(): void {
-    const openPattern = /<wr-(\w+)(?:\s|>)/g;
-    const closePattern = /<\/wr-(\w+)>/g;
+    const openPattern = /<(wr-[a-zA-Z0-9-]+)(?=\s|>|\/)/g;
+    const closePattern = /<\/(wr-[a-zA-Z0-9-]+)\s*>/g;
 
     // すべてのタグイベント（開始/終了）を位置付きで収集
     const events: Array<{ type: 'open' | 'close'; tagName: string; pos: number }> = [];
 
     let match;
     while ((match = openPattern.exec(this.content)) !== null) {
-      events.push({ type: 'open', tagName: 'wr-' + match[1], pos: match.index });
+      events.push({ type: 'open', tagName: match[1], pos: match.index });
     }
 
     while ((match = closePattern.exec(this.content)) !== null) {
-      events.push({ type: 'close', tagName: 'wr-' + match[1], pos: match.index });
+      events.push({ type: 'close', tagName: match[1], pos: match.index });
     }
 
     // 位置順にソート
@@ -666,7 +667,8 @@ function getTagDocumentation(tag: string): string {
     'wr-error': 'エラーを発生させます。',
     'wr-conditional': '条件ブロックです。',
     'wr-cond': 'wr-conditional 内の条件です。',
-    'wr-comment': 'コメントブロック（出力には含まれません）。'
+    'wr-comment': 'コメントブロック（出力には含まれません）。',
+    'wr--': 'コメントブロック（wr-comment の別名。出力には含まれません）。'
   };
   return docs[tag] || '';
 }

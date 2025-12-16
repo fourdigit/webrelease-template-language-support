@@ -6,7 +6,6 @@
 </head>
 <body>
     <h1>%pageTitle()%</h1>
-
     
     <!-- 条件分岐の例 -->
     <wr-if condition="isNotNull(email)">
@@ -19,15 +18,12 @@
         </wr-else>
         <wr-if cont="isNotNull(email)">
             <wr-then>
-                <p class="email">メールアドレス: <a href="mailto:%email%">%email%</a></p>
+                <p>メールアドレス: <a href="mailto:%email%">%email%</a></p>
             </wr-then>
             <wr-else>
                 <p>メールアドレスは登録されていません</p>
             </wr-else>
-                <wr-for list="items" variable="item">
-                    <p>%items.name%</p>
-                </wr-for>
-        </wr-if>
+        </wr-i>
     </wr-if>
     
     <!-- ループの例 -->
@@ -53,7 +49,9 @@
     
     <!-- 変数の使用例 -->
     <wr-variable name="total" value="0" />
-
+    <wr-for list="items" variable="item">
+        <wr-variable name="total" value="total + item.price" />
+    </wr-for>
     <p>合計: %total%</p>
     
     <!-- 複雑な条件の例 -->

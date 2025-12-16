@@ -117,7 +117,7 @@
       "patterns": [
         {
           "name": "meta.tag.webrelease",
-          "begin": "(<)(wr-(?:if|then|else|switch|case|default|for|break|variable|append|clear|return|error|conditional|cond|comment))\\b",
+          "begin": "(<)(wr--|wr-(?:if|then|else|switch|case|default|for|break|variable|append|clear|return|error|conditional|cond|comment))(?=\\s|/?>)",
           "beginCaptures": {
             "1": {
               "name": "punctuation.definition.tag.begin.webrelease"
@@ -140,7 +140,7 @@
         },
         {
           "name": "meta.tag.webrelease.close",
-          "match": "(</)(wr-(?:if|then|else|switch|case|default|for|break|variable|append|clear|return|error|conditional|cond|comment))(>)",
+          "match": "(</)(wr--|wr-(?:if|then|else|switch|case|default|for|break|variable|append|clear|return|error|conditional|cond|comment))(\\s*>?)",
           "captures": {
             "1": {
               "name": "punctuation.definition.tag.begin.webrelease"

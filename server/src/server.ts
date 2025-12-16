@@ -17,6 +17,12 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 
 import {
+  getLanguageService as getHtmlLanguageService,
+  newHTMLDataProvider,
+  HTMLDocument as HtmlDocument
+} from 'vscode-html-languageservice';
+
+import {
   TemplateParser,
   TAG_COMPLETIONS,
   FUNCTION_COMPLETIONS,
@@ -28,6 +34,170 @@ const connection = createConnection(ProposedFeatures.all);
 
 // テキストドキュメント管理を作成
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+
+// HTML Language Service (for HTML hover/completions in .wr)
+const webreleaseHtmlDataProvider = newHTMLDataProvider('webrelease', {
+  version: 1.1,
+  tags: [
+    {
+      name: 'wr-if',
+      description: 'WebRelease: conditional rendering',
+      attributes: [{ name: 'condition', description: 'Expression to evaluate' }]
+    },
+    { name: 'wr-then', description: 'WebRelease: true branch', attributes: [] },
+    { name: 'wr-else', description: 'WebRelease: false branch', attributes: [] },
+    {
+      name: 'wr-for',
+      description: 'WebRelease: loop',
+      attributes: [
+        { name: 'list', description: 'Iterable list' },
+        { name: 'string', description: 'Iterable string (by char)' },
+        { name: 'times', description: 'Repeat count' },
+        { name: 'variable', description: 'Loop variable name' },
+        { name: 'count', description: 'Total count variable name' },
+        { name: 'index', description: 'Index variable name' }
+      ]
+    },
+    {
+      name: 'wr-switch',
+      description: 'WebRelease: switch',
+      attributes: [{ name: 'value', description: 'Value to switch on' }]
+    },
+    {
+      name: 'wr-case',
+      description: 'WebRelease: case',
+      attributes: [{ name: 'value', description: 'Case value' }]
+    },
+    { name: 'wr-default', description: 'WebRelease: default case', attributes: [] },
+    {
+      name: 'wr-variable',
+      description: 'WebRelease: define variable',
+      attributes: [
+        { name: 'name', description: 'Variable name' },
+        { name: 'value', description: 'Value expression' }
+      ]
+    },
+    {
+      name: 'wr-append',
+      description: 'WebRelease: append to variable',
+      attributes: [
+        { name: 'name', description: 'Variable name' },
+        { name: 'value', description: 'Value to append' }
+      ]
+    },
+    {
+      name: 'wr-clear',
+      description: 'WebRelease: clear variable',
+      attributes: [{ name: 'name', description: 'Variable name' }]
+    },
+    {
+      name: 'wr-break',
+      description: 'WebRelease: break loop',
+      attributes: [{ name: 'condition', description: 'Optional break condition' }]
+    },
+    {
+      name: 'wr-return',
+      description: 'WebRelease: return value',
+      attributes: [{ name: 'value', description: 'Return value expression' }]
+    },
+    {
+      name: 'wr-error',
+      description: 'WebRelease: raise error',
+      attributes: [
+        { name: 'condition', description: 'Condition to raise error' },
+        { name: 'message', description: 'Error message' }
+      ]
+    },
+    {
+      name: 'wr-conditional',
+      description: 'WebRelease: conditional block',
+      attributes: [{ name: 'condition', description: 'Expression to evaluate' }]
+    },
+    {
+      name: 'wr-cond',
+      description: 'WebRelease: condition within wr-conditional',
+      attributes: [{ name: 'condition', description: 'Expression to evaluate' }]
+    },
+    { name: 'wr-comment', description: 'WebRelease: comment block (not rendered)', attributes: [] }
+    ,
+    { name: 'wr--', description: 'WebRelease: comment block (alias of wr-comment)', attributes: [] }
+  ]
+});
+
+const htmlLanguageService = getHtmlLanguageService({
+  customDataProviders: [webreleaseHtmlDataProvider]
+});
+
+const htmlDocCache = new Map<string, { version: number; htmlDoc: HtmlDocument }>();
+function getHtmlDoc(textDocument: TextDocument): HtmlDocument {
+  const cached = htmlDocCache.get(textDocument.uri);
+  if (cached && cached.version === textDocument.version) {
+    return cached.htmlDoc;
+  }
+  const htmlDoc = htmlLanguageService.parseHTMLDocument(textDocument as any);
+  htmlDocCache.set(textDocument.uri, { version: textDocument.version, htmlDoc });
+  return htmlDoc;
+}
+
+function isWebreleaseDelimiter(text: string, i: number): boolean {
+  if (text[i] !== '%') return false;
+  const prev = i > 0 ? text[i - 1] : '';
+  const next = i + 1 < text.length ? text[i + 1] : '';
+  // Delimiter is a single % (not part of %% escape)
+  return prev !== '%' && next !== '%';
+}
+
+function isInsideWebreleaseExpression(text: string, offset: number): boolean {
+  // Expressions are delimited by single % ... % (%% is an escaped %).
+  // If the number of delimiters before the cursor is odd, we're inside an expression.
+  let count = 0;
+  for (let i = 0; i < Math.min(offset, text.length); i++) {
+    if (isWebreleaseDelimiter(text, i)) {
+      count++;
+    }
+  }
+  return count % 2 === 1;
+}
+
+// In WebRelease templates, many wr-* attributes accept expressions or identifiers
+// that benefit from WebRelease function completion.
+const WEBRELEASE_EXPRESSION_ATTRIBUTES = new Set([
+  'condition',
+  'value',
+  'times',
+  'list',
+  'string',
+  'variable',
+  'count',
+  'index',
+  'name',
+  'message'
+]);
+
+function getWebreleaseAttributeContext(
+  text: string,
+  offset: number
+): { tagName: string; attributeName: string } | null {
+  // Heuristic: if cursor is inside an attribute value of an open <wr-...> tag,
+  // return {tagName, attributeName}. We only handle quoted values.
+  const openIdx = text.lastIndexOf('<', Math.max(0, offset - 1));
+  if (openIdx < 0) return null;
+
+  const withinTag = text.slice(openIdx, offset);
+  if (withinTag.includes('>')) return null; // not in an opening tag
+
+  const tagMatch = withinTag.match(/^<\s*(wr-[a-zA-Z0-9-]+)/);
+  if (!tagMatch) return null;
+
+  const tagName = tagMatch[1];
+
+  // If currently inside attribute value: attrName="....<cursor>"
+  const attrMatch = withinTag.match(/(\w+)\s*=\s*(['"])[^'"]*$/);
+  if (!attrMatch) return null;
+
+  const attributeName = attrMatch[1];
+  return { tagName, attributeName };
+}
 
 // ホバー用のタグ説明
 const TAG_DOCUMENTATION: Record<string, string> = {
@@ -46,7 +216,8 @@ const TAG_DOCUMENTATION: Record<string, string> = {
   'wr-error': '**wr-error** - エラーを発生させる\n\n属性:\n- `condition`: エラーにする条件\n- `message`: エラーメッセージ',
   'wr-conditional': '**wr-conditional** - 条件ブロック\n\n属性:\n- `condition`: 評価する式',
   'wr-cond': '**wr-cond** - wr-conditional 内の条件\n\n属性:\n- `condition`: 評価する式',
-  'wr-comment': '**wr-comment** - コメントブロック（出力には含まれません）'
+  'wr-comment': '**wr-comment** - コメントブロック（出力には含まれません）',
+  'wr--': '**wr--** - コメントブロック（wr-comment の別名。出力には含まれません）'
 };
 
 // ホバー用の関数説明
@@ -71,7 +242,8 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       completionProvider: {
         resolveProvider: false,
-        triggerCharacters: ['<', '%', '.']
+        // HTML features need space/quotes/slash triggers as well
+        triggerCharacters: ['<', '%', '.', ' ', '/', '=', '"', "'", ':']
       },
       hoverProvider: true
     }
@@ -119,7 +291,7 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
   const textBefore = text.slice(0, offset);
   
   // タグ入力中かどうか
-  if (textBefore.match(/<wr-\w*$/)) {
+  if (textBefore.match(/<wr-[\w-]*$/)) {
     // タグ名の補完
     return TAG_COMPLETIONS.map(item => ({
       label: item.label,
@@ -129,8 +301,24 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
     }));
   }
   
-  // 式（%...%）の途中かどうか
-  if (textBefore.match(/%[^%]*$/)) {
+  const insideExpr = isInsideWebreleaseExpression(text, offset);
+  const attrCtx = getWebreleaseAttributeContext(text, offset);
+  const insideWrExpressionAttribute =
+    !!attrCtx && WEBRELEASE_EXPRESSION_ATTRIBUTES.has(attrCtx.attributeName);
+
+  // 式（%...%）の内側だけ関数補完を出す
+  if (insideExpr || insideWrExpressionAttribute) {
+    // ドット直後（メンバーアクセス）かどうか
+    if (textBefore.match(/\.\w*$/)) {
+      // メソッド呼び出し向けの補完
+      return FUNCTION_COMPLETIONS.map(item => ({
+        label: item.label,
+        kind: CompletionItemKind.Method,
+        detail: item.detail,
+        insertText: item.insertText
+      }));
+    }
+
     // 関数補完
     return FUNCTION_COMPLETIONS.map(item => ({
       label: item.label,
@@ -139,19 +327,11 @@ connection.onCompletion((params: TextDocumentPositionParams): CompletionItem[] =
       insertText: item.insertText
     }));
   }
-  
-  // ドット直後（メンバーアクセス）かどうか
-  if (textBefore.match(/\.\w*$/)) {
-    // メソッド呼び出し向けの補完
-    return FUNCTION_COMPLETIONS.map(item => ({
-      label: item.label,
-      kind: CompletionItemKind.Method,
-      detail: item.detail,
-      insertText: item.insertText
-    }));
-  }
 
-  return [];
+  // Fallback to HTML language service for normal HTML editing
+  const htmlDoc = getHtmlDoc(document);
+  const htmlCompletions = htmlLanguageService.doComplete(document as any, params.position as any, htmlDoc as any);
+  return (htmlCompletions.items || []) as any;
 });
 
 // ホバー情報を提供
@@ -166,33 +346,34 @@ connection.onHover((params: TextDocumentPositionParams): Hover | null => {
   
   // 現在位置の単語範囲を取得
   const wordRange = getWordRangeAtPosition(text, offset);
-  if (!wordRange) {
-    return null;
-  }
-  
-  const word = text.slice(wordRange.start, wordRange.end);
-  
-  // タグかどうか
-  if (TAG_DOCUMENTATION[word]) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: TAG_DOCUMENTATION[word]
-      }
-    };
-  }
-  
-  // 関数かどうか
-  if (FUNCTION_DOCUMENTATION[word]) {
-    return {
-      contents: {
-        kind: MarkupKind.Markdown,
-        value: FUNCTION_DOCUMENTATION[word]
-      }
-    };
+  if (wordRange) {
+    const word = text.slice(wordRange.start, wordRange.end);
+
+    // タグかどうか
+    if (TAG_DOCUMENTATION[word]) {
+      return {
+        contents: {
+          kind: MarkupKind.Markdown,
+          value: TAG_DOCUMENTATION[word]
+        }
+      };
+    }
+
+    // 関数かどうか
+    if (FUNCTION_DOCUMENTATION[word]) {
+      return {
+        contents: {
+          kind: MarkupKind.Markdown,
+          value: FUNCTION_DOCUMENTATION[word]
+        }
+      };
+    }
   }
 
-  return null;
+  // Fallback to HTML language service hover
+  const htmlDoc = getHtmlDoc(document);
+  const htmlHover = htmlLanguageService.doHover(document as any, params.position as any, htmlDoc as any);
+  return (htmlHover || null) as any;
 });
 
 function getWordRangeAtPosition(text: string, offset: number): { start: number; end: number } | null {

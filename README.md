@@ -16,6 +16,9 @@ TextMate Grammar によるハイライトを提供します。
 - 属性
 - HTML / CSS / JavaScript / JSON の埋め込み（基本）
 
+<img width="982" height="623" alt="image" src="https://github.com/user-attachments/assets/a98c5103-527f-4913-a747-14edaf182a34" />
+
+
 ### 入力補助（補完）
 
 - **タグ補完**: `<wr-` から `wr-if` / `wr-for` などを補完

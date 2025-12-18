@@ -538,7 +538,6 @@ export class TemplateParser {
       'wr-variable': 'name',
       'wr-append': 'name',
       'wr-clear': 'name',
-      'wr-return': 'value',
       'wr-if': 'condition',
       'wr-cond': 'condition',
       'wr-switch': 'value',

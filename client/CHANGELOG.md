@@ -2,14 +2,22 @@
 
 All notable changes to the "WebRelease2 Template Language Support" extension will be documented in this file.
 
+## [1.0.0] - 2025-12-18
+
+### Changed (1.0.0)
+
+- Package now includes runtime dependencies (language client/server) to avoid missing-module errors.
+
 ## [0.9.0] - 2025-12-17
 
-### Changed
+### Changed (0.9.0)
+
 - Support file extensions are `.wr2` and `.wr2t` (dropped `.wrt`)
 
 ## [0.1.0] - 2024-12-16
 
 ### Added
+
 - Initial release
 - Syntax highlighting for WebRelease2 template language
 - Syntax validation for expressions and tags

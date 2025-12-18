@@ -3,8 +3,7 @@
 VS Code 向けの WebRelease2 テンプレート言語サポート拡張機能です。`.wr2` / `.wr2t` を対象に、構文ハイライト、入力補助、静的な構文チェックを提供します。
 WebRelease Version 2.80Mの構文をベースにしてます。
 
-<img width="953" height="681" alt="image" src="https://github.com/user-attachments/assets/877fb7cc-ffed-4276-bf8f-6a89f0589d44" />
-
+![screenshot](https://github.com/user-attachments/assets/877fb7cc-ffed-4276-bf8f-6a89f0589d44)
 
 ## インストール
 
@@ -17,7 +16,7 @@ WebRelease Version 2.80Mの構文をベースにしてます。
 ### コマンドライン
 
 ```bash
-code --install-extension webrelease2-template-lsp-0.9.0.vsix
+code --install-extension webrelease2-template-lsp-1.0.0.vsix
 ```
 
 ## 機能
@@ -29,8 +28,6 @@ code --install-extension webrelease2-template-lsp-0.9.0.vsix
 - コメント
 - 属性
 - HTML / CSS / JavaScript / JSON の埋め込み（基本）
-
-
 
 ### 入力補助（補完）
 
@@ -130,7 +127,7 @@ cd client && npx vsce package
 
 ### 構成
 
-```
+```text
 webrelease-template-language-support/
 ├── server/                 # LSP Server (Node.js/TypeScript)
 │   ├── src/

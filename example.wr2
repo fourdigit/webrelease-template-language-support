@@ -226,7 +226,6 @@
 
     <!-- 必須属性チェック NG -->
     <wr-clear />
-    <wr-return />
     <wr-if>
         <wr-then>NG</wr-then>
     </wr-if>
